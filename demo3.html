@@ -1,0 +1,117 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+</head>
+
+<body>
+    <div id="app">
+        <h1 id="h1" v-bind="a"></h1>
+        <input type="text" v-model="a">
+        <button id="aa" v-click="fn1">点击</button>
+    </div>
+</body>
+<script>
+    var data = {
+        a: 3,
+        c: 2,
+        n: {
+            a: 1
+        }
+    }
+    var methods = {
+        fn1: function(e) {
+            data.a += 10;
+        }
+    }
+    var binding = {}; //储层 Watcher 对象
+
+    function Watcher(name, el, exp, attr) { //name:元素的类型,el:元素节点,exp:data里面数据对应的属性,attr:元素的属性 如innerHTML
+        this.name = name;
+        this.el = el;
+        this.attr = attr;
+        this.exp = exp;
+        this.update();
+    }
+    Watcher.prototype.update = function() {
+        //更新DOM
+        this.el[this.attr] = data[this.exp];
+    }
+
+    function observe(data) {
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+        // 取出所有属性遍历
+        Object.keys(data).forEach(function(key) {
+            defineReactive(data, key, data[key]);
+        });
+    };
+
+    function defineReactive(data, key, val) {
+        observe(val); // 监听子属性
+        binding[key] = { //
+            directives: []
+        };
+        Object.defineProperty(data, key, {
+            enumerable: true, // 可枚举
+            configurable: false, // 不能再define
+            get: function() {
+
+                return val;
+            },
+            set: function(newVal) { //更新数据
+
+                val = newVal;
+                //更新DOM
+                binding[key].directives.forEach(function(item) {
+                    item.update()
+
+                })
+            }
+        });
+    }
+    //document.getElementById('aa').onclick
+    function complie(root) {
+        var _this = this;
+        var nodes = root.children;
+
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+
+            if (node.children.length) {
+                complie(node);
+                return
+            }
+            if (node.hasAttribute('v-click')) { //绑定事件
+
+                node.onclick = (function() { //自执行
+
+                    var attrVal = node.getAttribute('v-click');
+
+                    return methods[attrVal]
+                })()
+            }
+            if (node.hasAttribute('v-model') && (node.tagName == 'INPUT' || node.tagName == 'TEXTAREA')) {
+                var attrVal = node.getAttribute('v-model');
+                node.onkeyup = function(e) { //监听keyup 更新数据
+                    data[attrVal] = e.target.value
+                }
+                binding[attrVal].directives.push(new Watcher('input', node, attrVal, 'value'))
+            }
+            if (node.hasAttribute('v-bind')) {
+                var attrVal = node.getAttribute('v-bind');
+                binding[attrVal].directives.push(new Watcher('text', node, attrVal, 'innerHTML'))
+            }
+
+        }
+    }
+
+
+
+    observe(data);
+
+    complie(document.querySelector('#app'))
+</script>
+
+</html>
