@@ -39,7 +39,7 @@
                 return val;
             },
             set: function(newVal) {
-                console.log('哈哈哈，监听到值变化了 ', val, ' --> ', newVal);
+                console.log('监听到值变化了 ', val, ' --> ', newVal);
                 val = newVal;
             }
         });
@@ -47,7 +47,6 @@
     observe(b);
     document.getElementById('tex').addEventListener('keyup', function(e) {
         b.c = e.target.value;
-        console.log(b.n.a)
     }, false)
 </script>
 

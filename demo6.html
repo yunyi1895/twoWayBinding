@@ -1,0 +1,163 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+</head>
+<script>
+  function Vuc(options) {
+    this.$el = document.querySelector(options.el);
+    this.$data = options.data;
+    this.$methods = options.methods;
+    this.$watch = options.watch || {};
+    this.binding = {};
+    this.observe(this.$data);
+    this.complie(this.$el);
+    this.bindMethdos(this.$methods);
+    //  this.watchFun(this.$watch,this.$data);
+  }
+  Vuc.prototype.observe = function (data) {
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+    var _this = this
+    var watch = this.$watch
+    // 取出所有属性遍历
+    Object.keys(data).forEach(function (key) {
+      var watchFn = watch[key];//watch方法
+      _this.defineReactive(data, key, data[key], function (oldVal, newVal) {
+        watchFn && watchFn.call(_this, oldVal, newVal)
+      });
+    });
+  }
+  Vuc.prototype.bindMethdos = function (methods) {
+    var _this = this;
+    Object.keys(methods).forEach(function (key) {
+      _this.$methods[key] = methods[key].bind(_this);
+    })
+  }
+  Vuc.prototype.defineReactive = function (data, key, val, fn) {
+    var _this = this
+    this.observe(val); // 监听子属性
+    this.binding[key] = { //
+      directives: []
+    };
+    Object.defineProperty(data, key, {
+      enumerable: true, // 可枚举
+      configurable: false, // 不能再define
+      get: function () {
+        return val;
+      },
+      set: function (newVal) { //更新数据
+        // if(newVal===val) return
+
+        val = newVal;
+        fn && fn(val, newVal) //运行wtach方法
+        //更新DOM
+        _this.binding[key].directives.forEach(function (item) {
+          item.update()
+
+        })
+      }
+    });
+  }
+  Vuc.prototype.complie = function (root) {
+    var _this = this;
+    var nodes = root.children;
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      console.log(node)
+      if (node.children.length) {
+        this.complie(node);
+      }
+      if (node.hasAttribute('v-click')) { //绑定事件
+
+        node.onclick = (function () { //自执行
+
+          var attrVal = node.getAttribute('v-click');
+
+          return _this.$methods[attrVal].bind(_this)
+        })()
+      }
+      if (node.hasAttribute('v-model') && (node.tagName == 'INPUT' || node.tagName == 'TEXTAREA')) {
+        var attrVal = node.getAttribute('v-model');
+        node.onkeyup = function (e) { //监听keyup 更新数据
+          _this.$data[attrVal] = e.target.value
+        }
+        _this.binding[attrVal].directives.push(new Watcher('input', node, attrVal, 'value', _this))
+      }
+      if (node.hasAttribute('v-bind')) {
+        var attrVal = node.getAttribute('v-bind');
+
+        _this.binding[attrVal].directives.push(new Watcher('text', node, attrVal, 'innerHTML', _this))
+      }
+
+    }
+
+  }
+
+  function Watcher(name, el, exp, attr, vm) { //name:元素的类型,el:元素节点,exp:data里面数据对应的属性,attr:元素的属性 如innerHTML
+    this.name = name;
+    this.el = el;
+    this.attr = attr;
+    this.exp = exp;
+    this.vm = vm;
+    this.update();
+  }
+  Watcher.prototype.update = function () {
+    //更新DOM
+    this.el[this.attr] = this.vm.$data[this.exp];
+  }
+</script>
+
+<body>
+  <div id="app">
+    <h1>
+      我是a:
+      <span v-bind="a"></span>
+    </h1>
+    <input type="text" v-model="b">
+    <button id="aa" v-click="fn1">点击改变a的值</button>
+    <h1>我是C：
+      <span v-bind="c"></span>
+    </h1>
+    <h1>
+      我是b:
+      <span v-bind="b"></span>
+    </h1>
+  </div>
+</body>
+<script>
+
+  new Vuc({
+    el: '#app',
+    data: {
+      a: 3,
+      b: 1,
+      c: 2,
+      n: {
+        a: 1
+      }
+    },
+    methods: {
+      fn1: function (e) {
+        this.$data.a += 10;
+      },
+      fn2: function () { //改变b的值
+        console.log(this)
+        this.$data.b = this.$data.a - 1
+      }
+    },
+    watch: {
+      a: function (oldVal, newVal) {
+        console.log(this)
+        console.log('旧的a：' + oldVal)
+        console.log('新的a:' + newVal);
+        console.log(this.$data.a)
+        this.$data.c = this.$data.a + 1;
+        this.$methods.fn2();
+      }
+    }
+  })
+</script>
+
+</html>

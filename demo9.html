@@ -1,0 +1,283 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+</head>
+<script>
+  function Vuc(options) {
+    this.binding = {};
+    this.init(options);
+    this.computedFun(this.$computed);
+    this.observe(this.$data);
+    this.complie(this.$el);
+    options.mounted && options.mounted.call(this)
+    this.bindMethdos(this.$methods);
+
+    //  this.watchFun(this.$watch,this.$data);
+  }
+  Vuc.prototype.init = function (options) {
+    this.$el = document.querySelector(options.el);
+    this.$delDoms = [];
+    this.$data = options.data;
+    this.$methods = options.methods;
+    this.$watch = options.watch || {};
+    this.$computed = options.computed || {};
+    this.$options = options || {}
+    options.created && options.created.call(this)
+  }
+  Vuc.prototype.computedFun = function (computed) {
+    if (!computed || typeof computed !== 'object') {
+      return;
+    }
+    var _this = this;
+    var watch = this.$watch
+    Object.keys(computed).forEach(function (key) {
+      var watchFn = watch[key];//watch方法
+      _this.defineReactive(computed, key, computed[key], function (oldVal, newVal) {
+        watchFn && watchFn.call(_this, oldVal, newVal)
+      });
+
+    })
+  }
+  Vuc.prototype.observe = function (data) {
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+    var _this = this
+    var watch = this.$watch
+    // 取出所有属性遍历
+    Object.keys(data).forEach(function (key) {
+      var watchFn = watch[key];//watch方法
+      _this.defineReactive(data, key, data[key], function (oldVal, newVal) {
+        watchFn && watchFn.call(_this, oldVal, newVal)
+      });
+    });
+  }
+  Vuc.prototype.bindMethdos = function (methods) {
+    var _this = this;
+    Object.keys(methods).forEach(function (key) {
+      _this.$methods[key] = methods[key].bind(_this);
+    })
+  }
+  Vuc.prototype.defineReactive = function (data, key, val, fn) {
+    var _this = this
+    this.observe(val); // 监听子属性
+    this.binding[key] = { //
+      directives: []
+    };
+    Object.defineProperty(data, key, {
+      enumerable: true, // 可枚举
+      configurable: false, // 不能再define
+      get: function () {
+        return val;
+      },
+      set: function (newVal) { //更新数据
+        // if(newVal===val) return
+        val = newVal;
+        fn && fn(val, newVal) //运行wtach方法
+        //更新DOM
+        _this.binding[key].directives.forEach(function (item) {
+          item.update()
+        })
+        var computed = _this.$computed;
+        Object.keys(computed).forEach(function (key) {
+          _this.binding[key].directives.forEach(function (item) {
+            item.update()
+          })
+        })
+      }
+    });
+  }
+  Vuc.prototype.complie = function (root) {
+    var _this = this;
+    var nodes = root.children;
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.children.length) {
+        this.complie(node);
+      }
+      if (node.hasAttribute('v-click')) { //绑定事件
+
+        node.onclick = (function () { //自执行
+
+          var attrVal = node.getAttribute('v-click');
+          return _this.$methods[attrVal].bind(_this)
+        })()
+      }
+      if (node.hasAttribute('v-model') && (node.tagName == 'INPUT' || node.tagName == 'TEXTAREA')) {
+        var attrVal = node.getAttribute('v-model');
+        node.onkeyup = function (e) { //监听keyup 更新数据
+
+          _this.$data[attrVal] = e.target.value
+        }
+        _this.binding[attrVal].directives.push(new Watcher('input', node, attrVal, 'value', _this))
+      }
+      if (node.hasAttribute('v-bind')) {
+        var attrVal = node.getAttribute('v-bind');
+        _this.binding[attrVal].directives.push(new Watcher('text', node, attrVal, 'innerHTML', _this))
+      }
+      if (node.hasAttribute('v-show')) {
+        var attrShow = node.getAttribute('v-show');
+        _this.binding[attrShow].directives.push(new Watcher('style', node, attrShow, 'display', _this, true));
+        if (nodes[i + 1] && nodes[i + 1].hasAttribute('v-else')) {
+          _this.binding[attrShow].directives.push(new Watcher('style', nodes[i + 1], attrShow, 'display', _this, false));
+        }
+      }
+      if (node.hasAttribute('v-if')) {
+        var attrIf = node.getAttribute('v-if');
+        if (nodes[i + 1] && nodes[i + 1].hasAttribute('v-else')) {
+          _this.binding[attrIf].directives.push(new Watcher('if', nodes[i + 1], attrIf, 'display', _this, true));
+        }
+        _this.binding[attrIf].directives.push(new Watcher('if', node, attrIf, 'display', _this, false));//要放在后面 防止删除节点报错
+      }
+    }
+  }
+
+
+  function Watcher(name, el, exp, attr, vm, boole) { //name:元素的类型,el:元素节点,exp:data里面数据对应的属性,attr:元素的属性 如innerHTML
+    this.name = name;
+    this.el = el;
+    this.attr = attr;
+    this.exp = exp;
+    this.vm = vm;
+    this.boole = boole
+    this.update();
+
+  }
+  Watcher.prototype.update = function () {
+    //更新DOM
+
+    var _this = this
+    if (this.name === 'style') {
+      this.updateShow()
+      return
+    } else if (this.name === 'if') {
+      this.updateIf()
+      return
+    } else {
+      if (this.vm.$computed[this.exp]) { //exp是$computed里面的属性
+        this.updateComputed();
+        return
+      } else if (this.vm.$data[this.exp]) {//exp是$data里面的属性
+        this.el[this.attr] = this.vm.$data[this.exp];
+        this.vm.$options.updated && this.vm.$options.updated.call(this.vm);
+      }
+    }
+  }
+  Watcher.prototype.updateComputed = function () {
+    var computedFun = this.vm.$computed[this.exp];
+    var res = computedFun.call(this.vm);
+    this.el[this.attr] = res;
+    this.vm.$data[this.exp] = res;
+  }
+  Watcher.prototype.updateShow = function () {
+    this.el.style.display = this.vm.$data[this.exp] == this.boole ? '' : 'none';
+  }
+  Watcher.prototype.updateIf = function () {
+    if (this.preNode == undefined) { //没有 则赋值
+      this.preNode = this.el.previousElementSibling; //上一个兄弟节点
+    }
+    if (this.parentNode == undefined) {//没有 则赋值
+      this.parentNode = this.el.parentNode;
+    }
+    if (this.vm.$data[this.exp] == this.boole) { //删除节点
+      if (this.el.parentNode) {
+        this.$el = this.el.parentNode.removeChild(this.el);
+      }
+    } else {   //添加节点
+      if (this.$el) {
+        if (this.preNode) {
+          this.preNode.after(this.$el);
+        } else {
+          this.parentNode.appendChild(this.$el)
+        }
+      } else {
+      }
+    }
+  }
+</script>
+
+<body>
+  <div id="app">
+    <h1>
+      我是a:
+      <span id="id-a" v-bind="a"></span>
+    </h1>
+    <input type="text" v-model="b">
+    <button id="aa" v-click="fn1">点击改变a的值</button>
+    <h1>我是C：
+      <span v-bind="c"></span>
+    </h1>
+    <h1>
+      我是b:
+      <span v-bind="b"></span>
+    </h1>
+    <h1 id="m">
+      我是m:
+      <span v-bind="m"></span>
+    </h1>
+    <h1 v-if="show">show==true的时候 展示if渲染1</h1>
+    <h1 v-else>show==false 展示条件if渲染2</h1>
+    <button v-click="handleShow">测试if渲染</button>
+    <p>---</p>
+    <h1 v-show="testShow">testShow==true的时候 展示show渲染1</h1>
+    <h1 v-else>testShow==false 展示条件show渲染2</h1>
+    <button v-click="handleTestShow">测试show渲染</button>
+    <div>
+
+    </div>
+  </div>
+</body>
+<script>
+
+  new Vuc({
+    el: '#app',
+    data: {
+      a: 3,
+      b: 1,
+      c: 2,
+      n: {
+        a: 1
+      },
+      show: false,
+      testShow: false
+    },
+    methods: {
+      fn1: function (e) {
+        this.$data.a += 10;
+      },
+      fn2: function () { //改变b的值
+        this.$data.b = this.$data.a - 1
+      },
+      handleTestShow: function () {
+        this.$data.testShow = !this.$data.testShow
+      },
+      handleShow: function () {
+        this.$data.show = !this.$data.show
+      }
+    },
+    watch: {
+      a: function (oldVal, newVal) {
+        this.$data.c = this.$data.a + 1;
+        this.$methods.fn2();
+      }
+    },
+    computed: {
+      m: function () {
+        return this.$data.a + 'mmmm'
+      }
+    },
+    created: function () {
+
+
+    },
+    mounted: function () {
+
+    },
+    updated: function () {
+
+    }
+  })
+</script>
+
+</html>
