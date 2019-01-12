@@ -20,34 +20,52 @@
         }
     }
     var methods = {
-        fn1: function(e) {
+        fn1: function (e) {
             data.a += 10;
         }
     }
-    var binding = {}; //储层 Watcher 对象
 
-    function Watcher(name, el, exp, attr) { //name:元素的类型,el:元素节点,exp:data里面数据对应的属性,attr:元素的属性 如innerHTML
+    var binding = {}; //储层DOM对象更新方法的对象
+
+    /**
+   * 生成DOM更新对象函数的工厂函数
+   * @param {string} name dom元素的类型
+   * @param {DOM} el dom元素节点
+   * @param {string} exp data里面数据对应的属性名
+   * @param {string} attr 更新dom元素的方法，如innerHTML
+   */
+    function Watcher(name, el, exp, attr) {
         this.name = name;
         this.el = el;
         this.attr = attr;
         this.exp = exp;
         this.update();
     }
-    Watcher.prototype.update = function() {
+    Watcher.prototype.update = function () {
         //更新DOM
         this.el[this.attr] = data[this.exp];
     }
-
+    
+    /**
+   * 遍历数据，进行数据劫持
+   * @param {object} data 需要遍历的对象
+   */
     function observe(data) {
         if (!data || typeof data !== 'object') {
             return;
         }
         // 取出所有属性遍历
-        Object.keys(data).forEach(function(key) {
+        Object.keys(data).forEach(function (key) {
             defineReactive(data, key, data[key]);
         });
     };
 
+    /**
+    * 数据劫持函数
+    * @param {object} data 数据劫持的对象
+    * @param {string} key 数据劫持的属性
+    * @param {any} val 数据劫持的原属性值
+    */
     function defineReactive(data, key, val) {
         observe(val); // 监听子属性
         binding[key] = { //
@@ -56,45 +74,43 @@
         Object.defineProperty(data, key, {
             enumerable: true, // 可枚举
             configurable: false, // 不能再define
-            get: function() {
+            get: function () {
 
                 return val;
             },
-            set: function(newVal) { //更新数据
+            set: function (newVal) { //更新数据
 
                 val = newVal;
                 //更新DOM
-                binding[key].directives.forEach(function(item) {
+                binding[key].directives.forEach(function (item) {
                     item.update()
 
                 })
             }
         });
     }
-    //document.getElementById('aa').onclick
+
+    /**
+   * 模板解析函数
+   * @param {DOM} root 需要模板解析的DOM对象
+   */
     function complie(root) {
         var _this = this;
         var nodes = root.children;
-
         for (var i = 0; i < nodes.length; i++) {
             var node = nodes[i];
-
             if (node.children.length) {
                 complie(node);
-                
             }
             if (node.hasAttribute('v-click')) { //绑定事件
-
-                node.onclick = (function() { //自执行
-
+                node.onclick = (function () { //自执行
                     var attrVal = node.getAttribute('v-click');
-
                     return methods[attrVal]
                 })()
             }
             if (node.hasAttribute('v-model') && (node.tagName == 'INPUT' || node.tagName == 'TEXTAREA')) {
                 var attrVal = node.getAttribute('v-model');
-                node.onkeyup = function(e) { //监听keyup 更新数据
+                node.onkeyup = function (e) { //监听keyup 更新数据
                     data[attrVal] = e.target.value
                 }
                 binding[attrVal].directives.push(new Watcher('input', node, attrVal, 'value'))
@@ -106,11 +122,7 @@
 
         }
     }
-
-
-
     observe(data);
-
     complie(document.querySelector('#app'))
 </script>
 

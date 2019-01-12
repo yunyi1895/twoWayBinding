@@ -20,71 +20,83 @@
         }
     }
     var methods = {
-        fn1: function(e) {
+        fn1: function (e) {
             data.a += 10;
         }
     }
 
+    /**
+   * 遍历数据，进行数据劫持
+   * @param {object} data 需要遍历的对象
+   */
     function observe(data) {
         if (!data || typeof data !== 'object') {
             return;
         }
         // 取出所有属性遍历
-        Object.keys(data).forEach(function(key) {
+        Object.keys(data).forEach(function (key) {
             defineReactive(data, key, data[key]);
         });
     };
 
+    /**
+    * 数据劫持函数
+    * @param {object} data 数据劫持的对象
+    * @param {string} key 数据劫持的属性
+    * @param {any} val 数据劫持的原属性值
+    */
     function defineReactive(data, key, val) {
         observe(val); // 监听子属性
         Object.defineProperty(data, key, {
             enumerable: true, // 可枚举
             configurable: false, // 不能再define
-            get: function() {
+            get: function () {
                 console.log(key)
                 return val;
             },
-            set: function(newVal) {
+            set: function (newVal) {
                 updateDOM(newVal)
                 //更新DOM，渲染视图。
-                
                 val = newVal;
             }
         });
     }
-    //document.getElementById('aa').onclick
+
+    /**
+    * 模板解析函数
+    * @param {DOM} root 需要模板解析的DOM对象
+    */
     function complie(root) {
         var _this = this;
         var nodes = root.children;
-
         for (var i = 0; i < nodes.length; i++) {
             var node = nodes[i];
 
             if (node.children.length) {
                 complie(node);
-                
+
             }
             if (node.hasAttribute('v-click')) { //绑定事件
 
-                node.onclick = (function() { //自执行
+                node.onclick = (function () { //自执行
 
                     var attrVal = node.getAttribute('v-click');
 
                     return methods[attrVal]
                 })()
             }
-
-
         }
     }
-    function updateDOM(newVal){
+
+    /**
+    * 更新DOM显示函数
+    * @param {any} newVal 显示的数据 
+    */
+    function updateDOM(newVal) {
         document.getElementById('h1').innerHTML = newVal;
         //疑问：如果有很多个dom需要渲染呢？
     }
-    
-
     observe(data);
-
     complie(document.querySelector('#app'))
 </script>
 
