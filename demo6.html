@@ -49,9 +49,9 @@
       },
       set: function (newVal) { //更新数据
         // if(newVal===val) return
-
+        var oldVal=val;
         val = newVal;
-        fn && fn(val, newVal) //运行wtach方法
+        fn && fn(oldVal, newVal) //运行wtach方法
         //更新DOM
         _this.binding[key].directives.forEach(function (item) {
           item.update()

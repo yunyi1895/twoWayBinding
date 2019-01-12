@@ -19,7 +19,11 @@
             a: 1
         }
     }
-
+    var methods = {
+        fn1: function(e) {
+            data.a += 10;
+        }
+    }
 
     function observe(data) {
         if (!data || typeof data !== 'object') {
@@ -41,7 +45,9 @@
                 return val;
             },
             set: function(newVal) {
-                document.getElementById('h1').innerHTML = newVal
+                updateDOM(newVal)
+                //更新DOM，渲染视图。
+                
                 val = newVal;
             }
         });
@@ -71,11 +77,11 @@
 
         }
     }
-    var methods = {
-        fn1: function(e) {
-            data.a += 10;
-        }
+    function updateDOM(newVal){
+        document.getElementById('h1').innerHTML = newVal;
+        //疑问：如果有很多个dom需要渲染呢？
     }
+    
 
     observe(data);
 
