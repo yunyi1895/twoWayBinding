@@ -4,6 +4,10 @@
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 </head>
 <script>
+   /**
+      * 工厂函数
+      * @param {object} options 基本参数
+    */
   function Vuc(options) {
     this.$el = document.querySelector(options.el);
     this.$data = options.data;
@@ -15,6 +19,10 @@
     this.bindMethdos(this.$methods);
     //  this.watchFun(this.$watch,this.$data);
   }
+     /**
+    * 遍历数据，进行数据劫持
+    * @param {object} data 需要遍历的对象
+    */
   Vuc.prototype.observe = function (data) {
     if (!data || typeof data !== 'object') {
       return;
@@ -29,12 +37,23 @@
       });
     });
   }
+     /**
+    * 改变methods里面的this指向
+    * @param {methods} object 需要遍历的对象
+    */
   Vuc.prototype.bindMethdos = function (methods) {
     var _this = this;
     Object.keys(methods).forEach(function (key) {
       _this.$methods[key] = methods[key].bind(_this);
     })
   }
+  /**
+    * 数据劫持函数
+    * @param {object} data 数据劫持的对象
+    * @param {string} key 数据劫持的属性
+    * @param {any} val 数据劫持的原属性值
+    * @param {fn} function 数据劫持回调函数
+    */
   Vuc.prototype.defineReactive = function (data, key, val, fn) {
     var _this = this
     this.observe(val); // 监听子属性
@@ -49,7 +68,7 @@
       },
       set: function (newVal) { //更新数据
         // if(newVal===val) return
-        var oldVal=val;
+        var oldVal = val;
         val = newVal;
         fn && fn(oldVal, newVal) //运行wtach方法
         //更新DOM
@@ -60,6 +79,10 @@
       }
     });
   }
+   /**
+  * 模板解析函数
+  * @param {DOM} root 需要模板解析的DOM对象
+  */
   Vuc.prototype.complie = function (root) {
     var _this = this;
     var nodes = root.children;
@@ -94,7 +117,14 @@
     }
 
   }
-
+   /**
+    * 生成DOM更新对象函数的工厂函数
+    * @param {string} name dom元素的类型
+    * @param {DOM} el dom元素节点
+    * @param {string} exp data里面数据对应的属性名
+    * @param {string} attr 更新dom元素的方法，如innerHTML
+    * @param {object} vm 当前操作对象
+    */
   function Watcher(name, el, exp, attr, vm) { //name:元素的类型,el:元素节点,exp:data里面数据对应的属性,attr:元素的属性 如innerHTML
     this.name = name;
     this.el = el;
